@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>招生資料檢查｜畢業之後 我的夢想之旅</title>
+<meta name="robots" content="noindex">
+<style>
+body{font-family:"Noto Sans TC",system-ui,sans-serif;margin:0;padding:20px;background:#F6F7F5;color:#1F2A25;line-height:1.55}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 8px;border-bottom:2px solid #1D3A2E;padding-bottom:4px}
+.ok{color:#137A3E}.warn{color:#9A6A00}.err{color:#C0262D;font-weight:700}
+.box{background:#fff;border:1px solid #DDE3DE;border-radius:10px;padding:12px 14px;margin:8px 0}
+table{border-collapse:collapse;font-size:14px;background:#fff}td,th{border:1px solid #DDE3DE;padding:5px 8px;text-align:left;vertical-align:top}
+th{background:#EEF3EF}.wrap{overflow-x:auto}
+.g{background:#D6F5E3}.y{background:#FFF1C2}.r{background:#FBD9DA}
+code{background:#EEF3EF;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>🔧 招生資料檢查</h1>
+<p>改完 <code>data/admissions.js</code> 或 <code>data/departments.js</code> 後打開這頁。<b class="err">紅字</b>一定要修，<b class="warn">黃字</b>是提醒。</p>
+<div id="out"></div>
+<script src="data/admissions.js"></script>
+<script src="data/departments.js"></script>
+<script src="data/qrcodes.js"></script>
+<script src="js/story.js"></script>
+<script>
+(function(){
+const out=document.getElementById("out"),errs=[],warns=[],h=[];
+const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const D=window.ADMISSION_DATA,W=window.CSU_WORLDS;
+if(!D){out.innerHTML='<p class="err">讀不到 data/admissions.js：檔案可能有語法錯誤（少了逗號、引號或括號）。請用瀏覽器開發者工具（F12 → Console）看第幾行出錯。</p>';return}
+if(!W)errs.push("讀不到 data/departments.js（可能有語法錯誤）");
+const FIELDS=new Set(["type","vgen","track","cred","art","cross","grad","rank","coop","skills","special","h1","h2"]);
+const reDate=/^\d{4}-\d{2}-\d{2}$/,valid=s=>reDate.test(s)&&!isNaN(new Date(s+"T00:00:00"));
+const checkCond=(c,where)=>{if(!c)return;for(const[k,v]of Object.entries(c)){if(k==="any"){v.forEach(x=>checkCond(x,where));continue}if(k==="not"){checkCond(v,where);continue}if(!FIELDS.has(k))errs.push(`${where}：條件用了不存在的欄位「${k}」`)}};
+const ids=new Set(),willing=new Set((D.willing||[]).map(w=>w.id));
+for(const k of["cycle","updated","note","schoolYear"])if(!D.meta||!D.meta[k])errs.push(`meta 缺少 ${k}`);
+if(D.meta&&D.meta.schoolYear){const sy=D.meta.schoolYear;if(!valid(sy.start)||!valid(sy.graduation))errs.push("meta.schoolYear 的 start／graduation 日期格式錯誤");else{const ev=D.paths.flatMap(P=>P.events.map(e=>e.from)).sort();if(ev[0]<sy.start)warns.push(`有日期（${ev[0]}）早於 schoolYear.start，劇情時間軸會把它放在第一個月`);}}
+(D.tips||[]).forEach((t,i)=>{try{new RegExp(t.match)}catch(e){errs.push(`tips 第 ${i+1} 個 match 寫法錯誤`)}});
+(D.questions||[]).forEach(q=>checkCond(q.when,`問題 ${q.id}`));
+D.paths.forEach((P,i)=>{const w=`管道 ${P.id||"#"+i}（${P.name||"?"}）`;
+  for(const k of["id","road","name","icon","color","url","exam","who","conditions","prep","pitfalls","csu","events","otherwise"])if(P[k]==null)errs.push(`${w} 缺少欄位 ${k}`);
+  if(ids.has(P.id))errs.push(`${w}：id 重複`);ids.add(P.id);
+  if(!["estimated","confirmed"].includes(P.status))errs.push(`${w}：status 只能是 estimated 或 confirmed`);
+  else if(P.status!=="confirmed")warns.push(`${w}：日期還是「推估」`);
+  (P.rules||[]).forEach((r,j)=>{if(!["g","y","r"].includes(r.st))errs.push(`${w} 第 ${j+1} 條規則：st 只能是 g / y / r`);checkCond(r.when,`${w} 第 ${j+1} 條規則`)});
+  if(P.otherwise&&!["g","y","r"].includes(P.otherwise.st))errs.push(`${w}：otherwise.st 只能是 g / y / r`);
+  (P.tags||[]).forEach(t=>{if(!willing.has(t))errs.push(`${w}：tags 裡的「${t}」不在 willing 清單`)});
+  let prev=null,keys=0;
+  (P.events||[]).forEach((e,j)=>{const ew=`${w} 第 ${j+1} 個日期「${e.what}」`;
+    if(!valid(e.from))errs.push(`${ew}：from 日期格式錯誤（要 YYYY-MM-DD）`);
+    if(e.to&&!valid(e.to))errs.push(`${ew}：to 日期格式錯誤`);
+    if(e.to&&e.to<e.from)errs.push(`${ew}：結束日比開始日早`);
+    if(prev&&e.from<prev)warns.push(`${ew}：順序比上一個日期早，建議照時間排`);
+    prev=e.from;if(e.key)keys++;});
+  if(keys===0)warns.push(`${w}：沒有標 key:true 的重要日期（會改用第一個日期）`);
+  if(keys>1)warns.push(`${w}：有 ${keys} 個 key:true，只會用第一個`);
+  const last=(P.events||[]).map(e=>e.to||e.from).sort().pop();
+  if(last&&new Date(last+"T00:00:00")<new Date())warns.push(`${w}：所有日期都已經過了，該更新到下一年度`);
+});
+const QRS=window.QR_CODES||{};
+[...D.paths.map(P=>P.url),D.contact.line,window.CSU_DEPT_LINK].forEach(u=>{if(u&&!QRS[u])warns.push(`網址 ${u} 還沒有 QR Code：請執行 python tools/make_qr.py`)});
+(W||[]).forEach(wd=>wd.depts.forEach(d=>{if(d.check)warns.push(`未來城市「${wd.name}」的「${d.name}」標記為待確認（check:true）`)}));
+h.push(`<div class="box"><b>${esc(D.meta.cycle)}</b>　資料更新日：${esc(D.meta.updated)}　共 ${D.paths.length} 條道路</div>`);
+h.push(`<h2>檢查結果</h2>`+(errs.length?errs.map(e=>`<div class="err">✖ ${esc(e)}</div>`).join(""):`<div class="ok">✔ 沒有錯誤</div>`)+warns.map(e=>`<div class="warn">⚠ ${esc(e)}</div>`).join(""));
+
+/* 資格模擬：用幾種典型身分跑一次規則 */
+function match(c,p){if(!c)return true;return Object.entries(c).every(([k,want])=>{if(k==="any")return want.some(x=>match(x,p));if(k==="not")return!match(want,p);const have=p[k];if(Array.isArray(want))return want.includes(have);if(want&&typeof want==="object"){if("any"in want)return Array.isArray(have)&&have.some(x=>want.any.includes(x));if("not"in want)return Array.isArray(want.not)?!want.not.includes(have):have!==want.not}return have===want})}
+const elig=(P,p)=>{for(const r of P.rules||[])if(match(r.when,p))return r;return P.otherwise};
+const PROFILES=[
+ ["普通科應屆",{type:"gen",grad:"now",cross:"no",coop:"no",skills:["none"],special:["none"]}],
+ ["普通科已畢業",{type:"gen",grad:"past",cross:"no",coop:"no",skills:["none"],special:["none"]}],
+ ["綜高專門學程 25 學分・前30%",{type:"comp",track:"pro",cred:"yes",grad:"now",rank:"yes",coop:"no",skills:["none"],special:["none"]}],
+ ["綜高學術學程・學分不足",{type:"comp",track:"aca",cred:"no",grad:"now",coop:"no",skills:["none"],special:["none"]}],
+ ["高職應屆・成績前30%",{type:"voc",art:"no",grad:"now",rank:"yes",coop:"no",skills:["none"],special:["none"]}],
+ ["高職藝術群・有作品",{type:"voc",art:"yes",grad:"now",rank:"no",coop:"no",skills:["none"],special:["talent"]}],
+ ["高職・乙級證照",{type:"voc",art:"no",grad:"now",rank:"maybe",coop:"no",skills:["cert2"],special:["none"]}],
+ ["高職・產學專班",{type:"voc",art:"no",grad:"now",rank:"no",coop:"yes",skills:["c3"],special:["none"]}],
+ ["運動績優",{type:"voc",art:"no",grad:"now",rank:"no",coop:"no",skills:["none"],special:["sport"]}]];
+h.push(`<h2>資格模擬（改完規則看這裡對不對）</h2><div class="wrap"><table><tr><th>身分</th>${D.paths.map(P=>`<th>${P.icon}<br>${esc(P.name)}</th>`).join("")}</tr>`+
+ PROFILES.map(([n,p])=>`<tr><th>${esc(n)}</th>${D.paths.map(P=>{const r=elig(P,p)||{st:"?"};return`<td class="${r.st}" title="${esc(r.why)}">${{g:"🟢",y:"🟡",r:"🔴"}[r.st]||"?"}</td>`}).join("")}</tr>`).join("")+`</table></div><p class="small">滑鼠移到格子上可以看到原因文字。</p>`);
+
+/* 時程總表 */
+const all=D.paths.flatMap(P=>P.events.map(e=>({P,e}))).sort((a,b)=>a.e.from.localeCompare(b.e.from));
+h.push(`<h2>時程總表（依日期排序）</h2><div class="wrap"><table><tr><th>開始</th><th>結束</th><th>道路</th><th>事項</th><th>狀態</th></tr>`+
+ all.map(({P,e})=>`<tr><td>${e.from}</td><td>${e.to||""}</td><td>${P.icon} ${esc(P.name)}</td><td>${esc(e.what)}${e.key?" ⭐":""}</td><td>${e.confirmed||P.status==="confirmed"?'<span class="ok">已確認</span>':'<span class="warn">推估</span>'}</td></tr>`).join("")+`</table></div>`);
+out.innerHTML=h.join("");
+})();
+</script>
+</body>
+</html>
