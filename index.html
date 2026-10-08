@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>畢業之後 我的夢想之旅｜高中職畢業生的升學 RPG</title>
+<meta name="description" content="從高三開學走到畢業典禮。和同學、學長姐一起探索畢業後的升學道路，最後帶走一張屬於你的升學攻略。">
+<meta name="theme-color" content="#1D3A2E">
+<meta property="og:title" content="畢業之後 我的夢想之旅">
+<meta property="og:description" content="高中職畢業生的升學 RPG。未來不是選出來的答案，而是走出來的路。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="hud" hidden>
+    <div class="daychip"><small>高三</small><b id="dayNum">9</b><small>月</small></div>
+    <div class="stats" id="stats" aria-label="角色能力值"></div>
+    <div class="hudbtns">
+      <button class="hudbtn" id="btnFrag" aria-label="情報碎片">🧩<span class="n" id="fragN">0</span></button>
+      <button class="hudbtn" id="btnDex" aria-label="升學路線圖鑑" disabled>🗺️</button>
+      <button class="hudbtn" id="btnCity" aria-label="未來城市" disabled>🏙️</button>
+      <button class="hudbtn" id="btnBag" aria-label="我的背包" disabled>🎒</button>
+    </div>
+  </header>
+  <main id="stage" aria-live="polite"></main>
+</div>
+<div id="overlay" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+<noscript><p style="padding:20px">這個遊戲需要開啟 JavaScript 才能玩。</p></noscript>
+
+<!-- 資料層：每年只需要改 data/ 裡的檔案 -->
+<script src="data/admissions.js"></script>
+<script src="data/departments.js"></script>
+<script src="data/qrcodes.js"></script>
+<script src="js/story.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
